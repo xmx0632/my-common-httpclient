@@ -84,7 +84,7 @@ public class MyProtocolSocketFactory extends DefaultProtocolSocketFactory {
 		int controlledLocalPort = autoAllocate(localPort) ? getAvailableLocalPort()
 				: localPort;
 
-		if (autoAllocate(timeout)) {
+		if (timeout == 0) {
 			return createSocket(host, port, localAddress, controlledLocalPort);
 		} else {
 			// To be eventually deprecated when migrated to Java 1.4 or above
