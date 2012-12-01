@@ -20,11 +20,13 @@ public class CustomLocalPortTest {
 			InterruptedException {
 
 		HttpUtil util = new HttpUtil();
-		for (int i = 0; i < 10; i++) {
-			new Thread(new T(util)).start();
+		for (int i = 0; i < 5; i++) {
+			HttpClient client = util.getClient();
+			new Thread(new T(client)).start();
+			Thread.sleep(100);
 		}
 
-		Thread.sleep(2000);
+		Thread.sleep(4000);
 	}
 }
 
@@ -45,22 +47,24 @@ class HttpUtil {
 }
 
 class T implements Runnable {
-	HttpUtil util = null;
+	HttpClient client = null;
 
-	public T(HttpUtil util) {
-		this.util = util;
+	public T(HttpClient client) {
+		this.client = client;
 	}
 
 	public void run() {
-		HttpClient client = util.getClient();
 		String uri = "http://localhost";
 		GetMethod get = new GetMethod(uri);
+		get.addRequestHeader("Connection", "close");
 		try {
 			client.executeMethod(get);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			get.releaseConnection();
+			if (get != null) {
+				get.releaseConnection();
+			}
 		}
 	}
 

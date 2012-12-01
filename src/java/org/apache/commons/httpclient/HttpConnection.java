@@ -762,8 +762,6 @@ public class HttpConnection {
 				} else {
 					socketFactory = this.protocolInUse.getSocketFactory();
 				}
-				// XXX 绑定socket (local) source port端口
-				LOG.debug("绑定socket (local) source port端口");
 				this.socket = socketFactory.createSocket(host, port,
 						localAddress, 0, this.params);
 			}

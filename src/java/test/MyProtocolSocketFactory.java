@@ -30,7 +30,11 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
+import org.apache.commons.httpclient.ConnectTimeoutException;
+import org.apache.commons.httpclient.params.HttpConnectionParams;
+import org.apache.commons.httpclient.protocol.ControllerThreadSocketFactory;
 import org.apache.commons.httpclient.protocol.DefaultProtocolSocketFactory;
+import org.apache.commons.httpclient.protocol.ReflectionSocketFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -67,27 +71,45 @@ public class MyProtocolSocketFactory extends DefaultProtocolSocketFactory {
 		super();
 	}
 
-	/**
-	 * @see #createSocket(java.lang.String,int,java.net.InetAddress,int)
-	 */
-	public Socket createSocket(String host, int port, InetAddress localAddress,
-			int localPort) throws IOException, UnknownHostException {
-		int availableLocalPort = localPort;
-		if (localPort == 0) {
-			// 从指定的localPort端口范围中选取可用端口
-			try {
-				availableLocalPort = getAvailableLocalPort();
-			} catch (InterruptedException e) {
-				// GOD BLESS U
-				LOG.error("get available local port failed!", e);
-				availableLocalPort = 0;
-			}
+	public Socket createSocket(final String host, final int port,
+			final InetAddress localAddress, final int localPort,
+			final HttpConnectionParams params) throws IOException,
+			UnknownHostException, ConnectTimeoutException {
+		if (params == null) {
+			throw new IllegalArgumentException("Parameters may not be null");
 		}
-		return new Socket(host, port, localAddress, availableLocalPort);
+		int timeout = params.getConnectionTimeout();
+
+		// 从指定的localPort端口范围中选取可用端口
+		int controlledLocalPort = autoAllocate(localPort) ? getAvailableLocalPort()
+				: localPort;
+
+		if (autoAllocate(timeout)) {
+			return createSocket(host, port, localAddress, controlledLocalPort);
+		} else {
+			// To be eventually deprecated when migrated to Java 1.4 or above
+			Socket socket = ReflectionSocketFactory.createSocket(
+					"javax.net.SocketFactory", host, port, localAddress,
+					controlledLocalPort, timeout);
+			if (socket == null) {
+				socket = ControllerThreadSocketFactory.createSocket(this, host,
+						port, localAddress, controlledLocalPort, timeout);
+			}
+			return socket;
+		}
 	}
 
-	private int getAvailableLocalPort() throws InterruptedException {
-		return HttpLocalPortConfig.getInstance().getAvailableLocalPort();
+	private boolean autoAllocate(final int localPort) {
+		return localPort == 0;
+	}
+
+	private int getAvailableLocalPort() {
+		try {
+			return HttpLocalPortConfig.getInstance().getAvailableLocalPort();
+		} catch (InterruptedException e) {
+			// ignore
+		}
+		return 0;
 	}
 
 	/**

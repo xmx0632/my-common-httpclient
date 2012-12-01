@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -50,23 +51,33 @@ public class HttpLocalPortConfig {
 			start = Integer.valueOf(ranges[0]);
 			end = Integer.valueOf(ranges[1]);
 		} catch (NumberFormatException e) {
-			LOG.error("localport.properties config error", e);
+			LOG.error("localport.properties config error,apply default config:"
+					+ start + "-" + end, e);
 		}
-		for (int i = start; i < end; i++) {
+		for (int i = start; i <= end; i++) {
 			availableLocalPorts.add(i);
 		}
 		LOG.debug("availableLocalPorts size:" + availableLocalPorts.size());
 	}
 
 	public int getAvailableLocalPort() throws InterruptedException {
-		Integer localPort = availableLocalPorts.take();
-		LOG.debug("getAvailableLocalPort:" + localPort);
+		Integer localPort = availableLocalPorts.poll(10, TimeUnit.MILLISECONDS);
+		if (localPort == null) {
+			LOG.warn("no available local port.check localport.properties please.");
+			return -1;
+		}
+		LOG.debug("available Local Port:" + localPort);
 		return localPort;
 	}
 
 	public void releaseLocalPort(int localPort) {
 		LOG.debug("releaseLocalPort:" + localPort);
 		availableLocalPorts.add(localPort);
+	}
+
+	public void reset() {
+		availableLocalPorts.clear();
+		instance = null;
 	}
 
 }
